@@ -4,135 +4,195 @@ Widget::Widget(QWidget *parent)
     : QWidget(parent)
 {
     // 初始化按鈕
-    wateringBtn = new QPushButton(QStringLiteral("澆水"), this); // 澆水
-    illumBtn = new QPushButton(QStringLiteral("光照"), this);   // 光照
-    illSetTimeBtn = new QPushButton(QStringLiteral("時間設定"), this); // 時間設定
+    wateringBtn = new QPushButton(QStringLiteral("即時澆水"), this); // 澆水
     wtgSetTimeBtn = new QPushButton(QStringLiteral("時間設定"), this); // 時間設定
 
     // 初始化標籤
-    illumBtnLbl = new QLabel(QStringLiteral("光照："), this);
     wtgingBtnLbl = new QLabel(QStringLiteral("澆水："), this);
-
-    // 初始化佈局
-    hBtnAndLbl1 = new QHBoxLayout(); // 澆水區域
-    hBtnAndLbl2 = new QHBoxLayout(); // 光照區域
-    mainLayout = new QVBoxLayout(this); // 主佈局
 
     // 初始化自動模式選擇框
     autoModeCheckBox1 = new QCheckBox(QStringLiteral("自動模式"), this);
-    autoModeCheckBox2 = new QCheckBox(QStringLiteral("自動模式"), this);
+    wtgSetTimeBtn->setEnabled(false);
 
-    // 信號
-    connect(autoModeCheckBox1, &QCheckBox::toggled, this, &Widget::CheckMode);
-    connect(autoModeCheckBox2, &QCheckBox::toggled, this, &Widget::CheckMode);
-    connect(illSetTimeBtn, &QPushButton::clicked, this, [this]() { openTimeDialog("光照"); });
-    connect(wtgSetTimeBtn, &QPushButton::clicked, this, [this]() { openTimeDialog("澆水"); });
+    // 初始化佈局
+    controlGp = new QGroupBox(QStringLiteral("控制區"), this);
+    ctrlGpLayout = new QVBoxLayout(controlGp);
+    vBtnAndLbl1 = new QHBoxLayout(); // 澆水區域
 
     // 配置佈局
-    hBtnAndLbl1->addWidget(wtgingBtnLbl);
-    hBtnAndLbl1->addWidget(autoModeCheckBox1);
-    hBtnAndLbl1->addWidget(wateringBtn);
-    hBtnAndLbl1->addWidget(wtgSetTimeBtn);
+    vBtnAndLbl1->addWidget(wtgingBtnLbl);
+    vBtnAndLbl1->addWidget(autoModeCheckBox1);
+    vBtnAndLbl1->addWidget(wateringBtn);
+    vBtnAndLbl1->addWidget(wtgSetTimeBtn);
 
-
-    hBtnAndLbl2->addWidget(illumBtnLbl);
-    hBtnAndLbl2->addWidget(autoModeCheckBox2);
-    hBtnAndLbl2->addWidget(illumBtn);
-    hBtnAndLbl2->addWidget(illSetTimeBtn);
+    // 添加到控制區域佈局
+    ctrlGpLayout->addLayout(vBtnAndLbl1);
 
     // 添加到主佈局
-    mainLayout->addLayout(hBtnAndLbl1);
-    mainLayout->addLayout(hBtnAndLbl2);
+    mainLayout = new QHBoxLayout(this);
+    mainLayout->addWidget(controlGp);
+    mainLayout->setAlignment(Qt::AlignTop | Qt::AlignLeft);
 
-    // 設置主佈局
+    // 設置信號與槽
+    connect(autoModeCheckBox1, &QCheckBox::toggled, this, &Widget::CheckMode);
+    connect(wtgSetTimeBtn, &QCheckBox::clicked, this, &Widget::openTimeDialog);
+    connect(wateringBtn, &QCheckBox::clicked, this, &Widget::realTimeIrrigation);
+
+    //connect(wtgSetTimeBtn, &QPushButton::clicked, this, [this]() { openTimeDialog("澆水"); });
+
+    // 主佈局
     setLayout(mainLayout);
 }
 
 // 模式檢測
-void Widget::CheckMode(){
-    if(autoModeCheckBox1->isChecked()){
+void Widget::CheckMode() {
+    if (autoModeCheckBox1->isChecked()) {
         wateringBtn->setEnabled(false);
         wtgSetTimeBtn->setEnabled(true);
-
-    }else {
+    } else {
         wateringBtn->setEnabled(true);
         wtgSetTimeBtn->setEnabled(false);
     }
-
-    if(autoModeCheckBox2->isChecked()){
-        illumBtn->setEnabled(false);
-        illSetTimeBtn->setEnabled(true);
-    }else {
-        illumBtn->setEnabled(true);
-        illSetTimeBtn->setEnabled(false);
-    }
 }
 
+//即時澆水
+void Widget::realTimeIrrigation() {
+    QJsonObject json;
+
+    // 獲取當前時間
+    QDateTime currentDateTime = QDateTime::currentDateTime();
+    _wtgDateTime = currentDateTime;
+
+    /*QString timeString = currentDateTime.toString("yyyy-MM-dd HH:mm:ss");
+
+    // 插入到 JSON
+    json["currentTime"] = timeString;
+
+    // 打印 JSON 数据
+    qDebug() << QJsonDocument(json).toJson(QJsonDocument::Indented);*/
+
+    // 打印当前日期和时间
+    qDebug() << "Current Date and Time:" << currentDateTime.toString("yyyy-MM-dd HH:mm:ss");
+}
+
+
 // 選擇時間
-void Widget::openTimeDialog(const QString &timeType) {
+void Widget::openTimeDialog() {
     QDialog dialog(this);
     dialog.setWindowTitle(QStringLiteral("選擇時間"));
 
     QVBoxLayout *layout = new QVBoxLayout(&dialog);
 
-    // 創建分頁控件
-    QTabWidget *tabWidget = new QTabWidget(&dialog);
+    // 澆水欄 -------------------------------------------
+    QHBoxLayout *dwtgLayout = new QHBoxLayout();
+    QLabel *dwtgLabel = new QLabel(QStringLiteral("澆水："));
+    dwtgLabel->setAlignment(Qt::AlignLeft); // 文字居中
+    dwtgLabel->setStyleSheet(
+        "QLabel {"
+        "   letter-spacing: 10px;" // 文字間隔
+        "}"
+        );
+    dwtgLayout->addWidget(dwtgLabel);
 
-    // 分頁1：時間選擇 ---------------------------
-    QWidget *timeTab = new QWidget();
-    QVBoxLayout *timeTabLayout = new QVBoxLayout(timeTab);
+    // 澆水時間選擇器
+    QTimeEdit *dwtgTimeEdit = new QTimeEdit(QTime::currentTime());
+    dwtgTimeEdit->setDisplayFormat("HH:mm");
+    dwtgLayout->addWidget(dwtgTimeEdit);
 
-    QTimeEdit *timeEdit = new QTimeEdit(QTime::currentTime(), timeTab);
-    timeEdit->setDisplayFormat("HH:mm"); // 24H制
-    timeTabLayout->addWidget(new QLabel(QStringLiteral("選擇時間："), timeTab));
-    timeTabLayout->addWidget(timeEdit);
+    // 文字輸入框:澆水時間間隔
+    QLineEdit *dwtgLineEdit = new QLineEdit();
+    dwtgLineEdit->setPlaceholderText(QStringLiteral("輸入澆水間格時間"));
+    dwtgLayout->addWidget(dwtgLineEdit);
 
-    // 確定和取消按鈕
-    QHBoxLayout *tab1BtnLayout = new QHBoxLayout();
-    QPushButton *tab1okBtn = new QPushButton(QStringLiteral("確定"), &dialog);
-    QPushButton *tab1cancelBtn = new QPushButton(QStringLiteral("取消"), &dialog);
-    tab1BtnLayout->addWidget(tab1okBtn);
-    tab1BtnLayout->addWidget(tab1cancelBtn);
-    timeTabLayout->addLayout(tab1BtnLayout);
+    layout->addLayout(dwtgLayout);
 
-    tabWidget->addTab(timeTab, QStringLiteral("時間選擇"));
+    //光照欄 -----------------------------------
+    QHBoxLayout *dillLayout = new QHBoxLayout();
+    QLabel *dillLabel = new QLabel(QStringLiteral("光照開始時間選擇："));
+    dillLabel->setAlignment(Qt::AlignLeft); // 文字居中
+    dillLabel->setStyleSheet(
+        "QLabel {"
+        "   letter-spacing: 5px;" // 文字間隔
+        "}"
+        );
+    dillLayout->addWidget(dillLabel);
+
+    // 光照時間選擇器(起始時間)
+    QTimeEdit *dillTimeEdit = new QTimeEdit(QTime::currentTime());
+    dillTimeEdit->setDisplayFormat("HH:mm");
+    dillLayout->addWidget(dillTimeEdit);
+
+    layout->addLayout(dillLayout);
+
+    //狀態欄(光照持續時間)
+    QHBoxLayout *dStateLayout = new QHBoxLayout();
+    QLabel *dStateLabel = new QLabel(QStringLiteral("狀態："));
+    dStateLabel->setAlignment(Qt::AlignLeft); // 文字居中
+    dStateLabel->setStyleSheet(
+        "QLabel {"
+        "   letter-spacing: 10px;" // 文字間隔
+        "}"
+        );
+    dStateLayout->addWidget(dStateLabel);
+
+    QLabel *dillState = new QLabel(QStringLiteral("光照持續時間"));
+    dillState->setAlignment(Qt::AlignHCenter); // 文字居中
+    dStateLayout->addWidget(dillState);
+
+    layout->addLayout(dStateLayout);
+
+    // 送出按鈕
+    QHBoxLayout *dBtnLayout = new QHBoxLayout();
+    QPushButton *pushData = new QPushButton(QStringLiteral("送出"), &dialog);
+    dBtnLayout->addWidget(pushData);
+    layout->addLayout(dBtnLayout);
 
     // 信號
-    connect(tab1okBtn, &QPushButton::clicked, &dialog, &QDialog::accept);
-    connect(tab1cancelBtn, &QPushButton::clicked, &dialog, &QDialog::reject);
-
-    // 分頁2：重複方式 ---------------------------
-    QWidget *trpTab = new QWidget();
-    QVBoxLayout *trpTabLayout = new QVBoxLayout(trpTab);
-
-    QComboBox *trpComboBox = new QComboBox;
-    trpTabLayout->addWidget(new QLabel(QStringLiteral("選擇重複方式："), trpTab));
-
-    trpComboBox->addItem(QStringLiteral("每日"));
-    trpComboBox->addItem(QStringLiteral("間隔重複"));
-
-    trpTabLayout->addWidget(trpComboBox);
-
-    // 確定和取消按鈕
-    QHBoxLayout *tab2BtnLayout = new QHBoxLayout();
-    QPushButton *tab2okBtn = new QPushButton(QStringLiteral("確定"), &dialog);
-    QPushButton *tab2cancelBtn = new QPushButton(QStringLiteral("取消"), &dialog);
-    tab2BtnLayout->addWidget(tab2okBtn);
-    tab2BtnLayout->addWidget(tab2cancelBtn);
-    trpTabLayout->addLayout(tab2BtnLayout);
-
-    tabWidget->addTab(trpTab, QStringLiteral("重複方式"));
-
-    // 添加分頁控件到主佈局
-    layout->addWidget(tabWidget);
+    connect(pushData, &QCheckBox::clicked, this, &Widget::updateData);
 
     if (dialog.exec() == QDialog::Accepted) {
-        QTime selectedTime = timeEdit->time();
-        qDebug() << timeType << " Selected Time:" << selectedTime.toString("HH:mm");
-        if (timeType == "光照") {
-        } else if (timeType == "澆水") {
-        }
+        //QTime selectedTime = timeEdit->time();
+        QTime wtgTime = dwtgTimeEdit->time();
+        QTime illTime = dillTimeEdit->time();
+        QString inputText = dwtgLineEdit->text();
+
+        //取得當前日期
+        QDate currentDate = QDate::currentDate();
+        //日期時間合併
+        QDateTime wtgDateTime(currentDate, wtgTime);
+
+        //qDebug() << timeType << "Selected Time:" << selectedTime.toString("HH:mm");
+        //qDebug() << "DWTG Time:" << dwtgTime.toString("HH:mm");
+        //qDebug() << "Input Text:" << inputText;
     }
+}
+
+void Widget::updateData(){
+
+}
+
+QJsonObject Widget::getCurrentData() {
+    QJsonObject json;
+
+    // 設備 ID（此處假設你有設備 ID 可以設置）
+    json["id"] = "設備ID"; // 請根據實際情況設置設備 ID
+
+    // 設定命令
+    json["command"] = "設定命令"; // 這裡可以設置實際的指令，例如"光照" 或 "澆水"
+
+    // 假設已經保存了選擇的澆水時間（假設選擇時間為 selectedWateringTime）
+    QTime selectedWateringTime = QTime::currentTime(); // 替換為實際選擇的時間
+    json["wateringTime"] = selectedWateringTime.toString("HH:mm"); // 澆水時間
+
+    // 假設已經保存了光照開始時間（假設選擇時間為 selectedLightStartTime）
+    QTime selectedLightStartTime = QTime::currentTime(); // 替換為實際選擇的時間
+    json["lightStart"] = selectedLightStartTime.toString("HH:mm"); // 光照開始時間
+
+    // 假設已經保存了光照持續時間（假設為 60 分鐘）
+    int lightDuration = 720; // 替換為實際選擇的持續時間
+    json["duration"] = lightDuration; // 光照持續時間
+
+    return json;
 }
 
 Widget::~Widget() {}
